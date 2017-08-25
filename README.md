@@ -1,4 +1,4 @@
-[ ![Codeship Status for rotati/oscar-web](https://app.codeship.com/projects/0c400840-e69a-0134-b09a-26edd27a570b/status?branch=master)](https://app.codeship.com/projects/206873)
+[ ![Codeship Status for rotati/oscar-web-os](https://app.codeship.com/projects/f6b80f60-6b75-0135-9771-7e9523f697c6/status?branch=master)](https://app.codeship.com/projects/242146)
 
 # OSCaR
 
