@@ -8,7 +8,7 @@ body[id='client_advanced_searches-index'] {
 
   .table {
     th,
-    td.gender, td.status, td.follow_up_date, td.date_of_birth, td.grade, td.has_been_in_orphanage, td.has_been_in_government_care,
+    td.gender, td.status, td.follow_up_date, td.date_of_birth, td.school_grade, td.has_been_in_orphanage, td.has_been_in_government_care,
     td.initial_referral_date, td.referral_phone, td.able, td.birth_province, td.province, td.state, td.case_start_date,
     td.carer_phone_number td.support_amount, td.family_preservation, td.cases, td.accepted_date, td.exit_date {
       text-align: center;
@@ -18,7 +18,7 @@ body[id='client_advanced_searches-index'] {
       min-width: 100px;
     }
 
-    th.code, th.slug, th.grade, th.gender, th.cases, th.case_start_date {
+    th.code, th.slug, th.school_grade, th.gender, th.cases, th.case_start_date {
       min-width: 130px;
     }
 
@@ -26,7 +26,7 @@ body[id='client_advanced_searches-index'] {
       min-width: 135px;
     }
 
-    th.any_assessments, th.able_state, th.house_number, th.street_number, th.village {
+    th.any_assessments, th.able_state, th.house_number, th.street_number, th.village, th.case_note_date, th.case_note_type, th.date_of_assessments {
       min-width: 150px;
     }
 
@@ -54,7 +54,7 @@ body[id='client_advanced_searches-index'] {
       min-width: 250px;
     }
 
-    th.has_been_in_orphanage {
+    th.has_been_in_orphanage, th.all_csi_assessments {
       min-width: 260px;
     }
 
@@ -65,6 +65,10 @@ body[id='client_advanced_searches-index'] {
     th.reason_for_family_separation, th.history_of_high_risk_behaviours,
     th.history_of_harm, th.history_of_disability_and_or_illness {
       min-width: 360px;
+    }
+
+    th.protection_from_abuse_and_exploitation {
+      min-width: 280px;
     }
 
     td.manage {
@@ -84,6 +88,8 @@ body[id='client_advanced_searches-index'] {
       height: 250px;
       width: 390px;
       overflow-y: scroll;
+      padding-top: 10px;
+      padding-bottom: 10px;
     }
     .visibility {
       margin: 2px 0 2px 0;

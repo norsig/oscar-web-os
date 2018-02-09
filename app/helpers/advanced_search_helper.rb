@@ -41,7 +41,7 @@ module AdvancedSearchHelper
       local_family_name: I18n.t('advanced_search.fields.local_family_name'),
       form_title: I18n.t('advanced_search.fields.form_title'),
       code: I18n.t('advanced_search.fields.code'),
-      grade: I18n.t('advanced_search.fields.grade'),
+      school_grade: I18n.t('advanced_search.fields.school_grade'),
       family_id: I18n.t('advanced_search.fields.family_id'),
       age: I18n.t('advanced_search.fields.age'),
       family: I18n.t('advanced_search.fields.family'),
@@ -51,7 +51,7 @@ module AdvancedSearchHelper
       street_number: I18n.t('advanced_search.fields.street_number'),
       village: I18n.t('advanced_search.fields.village'),
       commune: I18n.t('advanced_search.fields.commune'),
-      district: I18n.t('advanced_search.fields.district'),
+      district_id: I18n.t('advanced_search.fields.district'),
       school_name: I18n.t('advanced_search.fields.school_name'),
       placement_date: I18n.t('advanced_search.fields.placement_start_date'),
       date_of_birth: I18n.t('advanced_search.fields.date_of_birth'),
@@ -87,6 +87,11 @@ module AdvancedSearchHelper
       exit_date: I18n.t('advanced_search.fields.ngo_exit_date'),
       accepted_date: I18n.t('advanced_search.fields.ngo_accepted_date'),
       program_stream: I18n.t('advanced_search.fields.program_stream'),
+      csi_domain_scores: I18n.t('advanced_search.fields.csi_domain_scores'),
+      case_note_date: I18n.t('advanced_search.fields.case_note_date'),
+      case_note_type: I18n.t('advanced_search.fields.case_note_type'),
+      date_of_assessments: I18n.t('advanced_search.fields.date_of_assessments'),
+      telephone_number: I18n.t('advanced_search.fields.telephone_number')
     }
     translations[key.to_sym] || ''
   end

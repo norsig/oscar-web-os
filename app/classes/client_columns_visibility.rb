@@ -35,8 +35,7 @@ class ClientColumnsVisibility
       commune_: :commune,
       district_: :district,
       school_name_: :school_name,
-      grade_: :grade,
-      able_state_: :able_state,
+      school_grade_: :school_grade,
       has_been_in_orphanage_: :has_been_in_orphanage,
       has_been_in_government_care_: :has_been_in_government_care,
       relevant_referral_information_: :relevant_referral_information,
@@ -65,9 +64,14 @@ class ClientColumnsVisibility
       kid_id_: :kid_id,
       family_id_: :family_id,
       any_assessments_: :any_assessments,
+      case_note_date_: :case_note_date,
+      case_note_type_: :case_note_type,
+      date_of_assessments_: :date_of_assessments,
+      all_csi_assessments_: :all_csi_assessments,
       donor_: :donor,
       manage_: :manage,
-      changelog_: :changelog
+      changelog_: :changelog,
+      telephone_number_: :telephone_number
     }
   end
 
@@ -78,11 +82,25 @@ class ClientColumnsVisibility
     end
   end
 
-  def add_custom_builder_columns
+  private
+
+  def domain_score_columns
     columns = columns_collection
+    # if @params[:controller] != 'clients'
+    Domain.order_by_identity.each do |domain|
+      identity = domain.identity
+      field = domain.convert_identity
+      columns = columns.merge!("#{field}_": field.to_sym)
+    end
+    # end
+    columns
+  end
+
+  def add_custom_builder_columns
+    columns = domain_score_columns
     if @params[:column_form_builder].present?
       @params[:column_form_builder].each do |column|
-        field   = column['id'].downcase.parameterize('_')
+        field   = column['id']
         columns = columns.merge!("#{field}_": field.to_sym)
       end
     end

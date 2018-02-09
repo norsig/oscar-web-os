@@ -7,6 +7,8 @@ class CustomField < ActiveRecord::Base
   has_many :users, through: :custom_field_properties, source: :custom_formable, source_type: 'User'
   has_many :partners, through: :custom_field_properties, source: :custom_formable, source_type: 'Partner'
   has_many :families, through: :custom_field_properties, source: :custom_formable, source_type: 'Family'
+  has_many :custom_field_permissions, dependent: :destroy
+  has_many :user_permissions, through: :custom_field_permissions
 
   has_paper_trail
 
@@ -20,6 +22,7 @@ class CustomField < ActiveRecord::Base
   validate  :uniq_fields, :field_label, if: -> { fields.present? }
 
   # before_save :set_time_of_frequency
+  after_create :build_permission
   before_save :set_ngo_name, if: -> { ngo_name.blank? }
 
   scope :by_form_title,  ->(value)  { where('form_title iLIKE ?', "%#{value}%") }
@@ -28,6 +31,7 @@ class CustomField < ActiveRecord::Base
   scope :partner_forms,  ->         { where(entity_type: 'Partner') }
   scope :user_forms,     ->         { where(entity_type: 'User') }
   scope :not_used_forms, ->(value)  { where.not(id: value) }
+  scope :ordered_by,     ->(column) { order(column) }
   scope :order_by_form_title, ->    { order(:form_title) }
 
   def self.client_used_form
@@ -48,11 +52,12 @@ class CustomField < ActiveRecord::Base
   end
 
   def presence_of_fields
-    errors.add(:fields, "can't be blank")
+    errors.add(:fields, I18n.t('cannot_be_blank'))
   end
 
   def uniq_fields
     labels = fields.map{ |f| f['label'] }
+    labels.delete('Separation Line')
     duplicate = labels.detect { |e| labels.count(e) > 1 }
     errors.add(:fields, I18n.t('must_be_uniq')) if duplicate.present?
   end
@@ -63,6 +68,13 @@ class CustomField < ActiveRecord::Base
         errors.add(:fields, I18n.t('field_label_cannot_be_blank'))
         break
       end
+    end
+  end
+
+  def build_permission
+    User.all.each do |user|
+      next if user.admin? || user.strategic_overviewer?
+      self.custom_field_permissions.find_or_create_by(user_id: user.id)
     end
   end
 

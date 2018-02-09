@@ -4,9 +4,11 @@ class LeaveProgram < ActiveRecord::Base
   has_many :form_builder_attachments, as: :form_buildable, dependent: :destroy
 
   validates :exit_date, presence: true
+  validate :exit_date_value, if: 'exit_date.present?'
 
   accepts_nested_attributes_for :form_builder_attachments, reject_if: proc { |attributes| attributes['name'].blank? &&  attributes['file'].blank? }
 
+  after_save :create_leave_program_history
   after_create :set_client_status
 
   has_paper_trail
@@ -36,5 +38,17 @@ class LeaveProgram < ActiveRecord::Base
 
   def get_form_builder_attachment(value)
     form_builder_attachments.find_by(name: value)
+  end
+
+  private
+
+  def create_leave_program_history
+      LeaveProgramHistory.initial(self)
+  end
+
+  def exit_date_value
+    if exit_date < client_enrollment.enrollment_date
+      errors.add(:exit_date, I18n.t('invalid_program_exit_date'))
+    end
   end
 end

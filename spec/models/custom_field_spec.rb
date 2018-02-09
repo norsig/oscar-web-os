@@ -4,6 +4,8 @@ describe CustomField, 'associations' do
   it { is_expected.to have_many(:families).through(:custom_field_properties).source(:custom_formable) }
   it { is_expected.to have_many(:partners).through(:custom_field_properties).source(:custom_formable) }
   it { is_expected.to have_many(:users).through(:custom_field_properties).source(:custom_formable) }
+  it { is_expected.to have_many(:custom_field_permissions).dependent(:destroy) }
+  it { is_expected.to have_many(:user_permissions).through(:custom_field_permissions) }
 end
 
 describe CustomField, 'validations' do
@@ -120,6 +122,18 @@ describe CustomField, 'callbacks' do
     end
     it 'no frequency is chosen then it should not have time of frequency' do
       expect(no_frequency_custom_field.time_of_frequency).to eq(0)
+    end
+  end
+
+  context 'build permission' do
+    let!(:custom_field) { create(:custom_field, form_title: 'Form A') }
+    let!(:user) { create(:user) }
+
+    it 'create records in custom field permission' do
+      expect(user.custom_field_permissions.first.user_id).to eq(user.id)
+      expect(user.custom_field_permissions.pluck(:custom_field_id)).to include(custom_field.id)
+      expect(user.custom_field_permissions.first.readable).to eq(true)
+      expect(user.custom_field_permissions.first.editable).to eq(true)
     end
   end
 end

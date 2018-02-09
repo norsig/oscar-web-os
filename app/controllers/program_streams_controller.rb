@@ -1,15 +1,18 @@
 class ProgramStreamsController < AdminController
   load_and_authorize_resource
 
-  before_action :find_program_stream, except: [:index, :new, :create, :preview]
+  before_action :find_program_stream, except: [:index, :new, :create, :preview, :search]
   before_action :find_ngo
   before_action :authorize_program, only: [:edit, :update, :destroy]
-  before_action :complete_program_steam, only: [:new, :create, :edit, :update]
   before_action :find_another_ngo_program_stream, if: -> { @ngo_name.present? }
+  before_action :remove_html_tags, only: [:create, :update]
+  before_action :complete_program_steam, only: [:new, :create]
+  before_action :available_exclusive_programs, :available_mutual_dependence_programs, only: [:edit, :update]
 
   def index
     @program_streams = paginate_collection(decorate_programs(column_order)).page(params[:page_1]).per(20)
-    @ngos_program_streams = paginate_collection(decorate_programs(all_ngos_ordered)).page(params[:page_2]).per(20)
+    @ngos_program_streams = paginate_collection(decorate_programs(program_stream_ordered)).page(params[:page_2]).per(20)
+    @demo_program_streams = paginate_collection(decorate_programs(program_stream_ordered('demo'))).page(params[:page_3]).per(20) unless current_organization.short_name == 'demo'
   end
 
   def new
@@ -18,8 +21,7 @@ class ProgramStreamsController < AdminController
       @program_stream = ProgramStream.new(@another_program_stream.attributes)
       @tracking = @another_program_stream.trackings
     else
-      @program_stream = ProgramStream.new
-      @tracking = @program_stream.trackings.build
+      copy_form_from_custom_field
     end
   end
 
@@ -70,16 +72,37 @@ class ProgramStreamsController < AdminController
     render :show
   end
 
+  def search
+    @program_streams = paginate_collection(decorate_programs(search_program_streams)).page(params[:page]).per(20)
+    redirect_to program_streams_path, alert: t('.no_results') if @program_streams.empty?
+  end
+
   private
 
   def find_program_stream
     @program_stream = ProgramStream.find(params[:id])
   end
 
+  def remove_html_tags
+    enrollment = params[:program_stream][:enrollment]
+    params[:program_stream][:enrollment] = strip_tags(enrollment)
+
+    exit_program = params[:program_stream][:exit_program]
+    params[:program_stream][:exit_program] = strip_tags(exit_program)
+
+    trackings = params[:program_stream][:trackings_attributes]
+    trackings.values.each do |value|
+      value['fields'] = strip_tags(value['fields'])
+    end
+  end
+
+  def strip_tags(value)
+    ActionController::Base.helpers.strip_tags(value)
+  end
+
   def program_stream_params
     ngo_name = current_organization.full_name
     delete_select_option_empty
-
     default_params = [:name, :rules, :description, :enrollment, :exit_program, :tracking_required, :quantity, program_exclusive: [], mutual_dependence: [], domain_ids: []]
     default_params << { trackings_attributes: [:name, :frequency, :time_of_frequency, :fields, :_destroy, :id] } unless program_without_tracking?
 
@@ -109,13 +132,12 @@ class ProgramStreamsController < AdminController
     @mutual_dependence = mutual_dependence
   end
 
-  def program_streams_all_organizations
+  def find_program_stream_organizations(org = '')
     current_org_name = current_organization.short_name
-    program_streams = []
-    orgs = current_org_name == 'demo' ? Organization.all : Organization.without_demo
-    orgs.each do |org|
+    organizations = org == 'demo' ? Organization.where(short_name: 'demo') : Organization.without_demo_and_cwd.order(:full_name)
+    program_streams = organizations.map do |org|
       Organization.switch_to org.short_name
-      program_streams << ProgramStream.all.reload
+      ProgramStream.all.reload
     end
     Organization.switch_to(current_org_name)
     program_streams.flatten
@@ -138,17 +160,19 @@ class ProgramStreamsController < AdminController
 
     column = params[:order]
     sort_by = params[:descending] == 'true' ? 'desc' : 'asc'
+    column == "quantity" ? "#{column}" : "lower(#{column})"
     (order_string = "#{column} #{sort_by}") if column.present?
 
     ProgramStream.ordered_by(order_string)
   end
 
-  def all_ngos_ordered
-    programs = program_streams_all_organizations.sort_by(&:name)
+  def program_stream_ordered(org = '')
+    program_streams = org == 'demo' ? find_program_stream_organizations('demo') : find_program_stream_organizations
+    programs = program_streams.sort_by(&:name)
     column = params[:order]
-    return programs unless params[:tab] == 'all_ngo' && column
+    return programs unless (params[:tab] == 'all_ngo' || params[:tab] == 'demo_ngo') && column
 
-    ordered = program_streams_all_organizations.sort_by{ |p| p.send(column).to_s.downcase }
+    ordered = program_streams.sort_by{ |p| p.send(column).to_s.downcase }
     programs = (column.present? && params[:descending] == 'true' ? ordered.reverse : ordered)
     programs
   end
@@ -169,6 +193,58 @@ class ProgramStreamsController < AdminController
   end
 
   def complete_program_steam
-    @complete_program_steam = ProgramStream.where.not(id: @program_stream).complete.ordered
+    @exclusive_programs = @mutual_dependences = ProgramStream.where.not(id: @program_stream).complete.ordered
+  end
+
+  private
+
+  def search_program_streams
+    results = []
+    if params[:search].present?
+      current_org_name = current_organization.short_name
+      name   = params[:search]
+      Organization.all.each do |org|
+        Organization.switch_to(org.short_name)
+          program_streams = ProgramStream.by_name(name)
+          results << program_streams if program_streams.present?
+      end
+      Organization.switch_to(current_org_name)
+    end
+    results.flatten.sort! {|x, y| x.name.downcase <=> y.name.downcase}
+  end
+
+  def copy_form_from_custom_field
+    if params[:custom_field_id].present?
+      custom_field = CustomField.find(params[:custom_field_id])
+      if params[:field] == 'enrollment'
+        @program_stream = ProgramStream.new(enrollment: custom_field.fields)
+        @tracking = @program_stream.trackings.build
+      elsif params[:field] == 'tracking'
+        @program_stream = ProgramStream.new
+        @tracking = @program_stream.trackings.build(fields: custom_field.fields)
+      elsif params[:field] == 'exit_program'
+        @program_stream = ProgramStream.new(exit_program: custom_field.fields)
+        @tracking = @program_stream.trackings.build
+      end
+    else
+      @program_stream = ProgramStream.new
+      @tracking = @program_stream.trackings.build
+    end
+  end
+
+  def available_exclusive_programs
+    client_ids = @program_stream.client_enrollments.active.pluck(:client_id).uniq
+    active_program_ids = ClientEnrollment.active.where(client_id: client_ids).pluck(:program_stream_id)
+    available_programs_for_exclusive = ProgramStream.where.not(id: active_program_ids).complete.ordered
+    @exclusive_programs = available_programs_for_exclusive
+  end
+
+  def available_mutual_dependence_programs
+    all_programs = ProgramStream.where.not(id: @program_stream).complete.ordered
+
+    active_client_ids   = @program_stream.client_enrollments.active.pluck(:client_id).uniq
+    active_program_ids  = ClientEnrollment.active.where(client_id: active_client_ids).pluck(:program_stream_id)
+    mutuals_available   = ProgramStream.filter(active_program_ids).where.not(id: @program_stream.id).complete.ordered
+    @mutual_dependences = active_client_ids.any? ? mutuals_available : all_programs
   end
 end

@@ -2,6 +2,7 @@ class DomainGroupsController < AdminController
   load_and_authorize_resource
 
   before_action :find_domain_group, only: [:update, :destroy]
+  before_action :validate_organization
 
   def index
     @domain_groups = DomainGroup.all.page(params[:page]).per(20)
@@ -26,7 +27,7 @@ class DomainGroupsController < AdminController
   end
 
   def destroy
-    if @domain_group.domains_count.zero?
+    if @domain_group.domains.count.zero?
       @domain_group.destroy
       redirect_to domain_groups_url, notice: t('.successfully_deleted')
     else
@@ -48,5 +49,9 @@ class DomainGroupsController < AdminController
 
   def find_domain_group
     @domain_group = DomainGroup.find(params[:id])
+  end
+
+  def validate_organization
+    redirect_to root_url, alert: t('unauthorized.default') if (Rails.env.production? && current_organization.demo?)
   end
 end

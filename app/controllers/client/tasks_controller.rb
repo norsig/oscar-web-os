@@ -8,13 +8,9 @@ class Client::TasksController < AdminController
     @tasks = @client.tasks
   end
 
-  def new
-    @task = @client.tasks.new
-  end
-
   def create
     @task = @client.tasks.new(task_params)
-    @task.user_ids = @client.user_ids
+    @task.user_id = current_user.id
     respond_to do |format|
       if @task.save
         Calendar.populate_tasks(@task)

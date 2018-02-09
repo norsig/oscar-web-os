@@ -12,6 +12,7 @@ CIF.Custom_fieldsNew = CIF.Custom_fieldsCreate = CIF.Custom_fieldsEdit = CIF.Cus
     _valTimeOfFrequency()
     _changeTimeOfFrequency()
     _convertFrequency()
+    _removeSearchCustomFields()
 
   _valTimeOfFrequency = ->
     $('#custom_field_time_of_frequency').val()
@@ -69,11 +70,15 @@ CIF.Custom_fieldsNew = CIF.Custom_fieldsCreate = CIF.Custom_fieldsEdit = CIF.Cus
 
   _initFormBuilder = ->
     builderOption = new CIF.CustomFormBuilder()
-    fields = "#{$('.build-wrap').data('fields')}" || ''
-    formBuilder = $('.build-wrap').formBuilder({
+    fields = $('.build-wrap').data('fields') || []
+
+    formBuilder = $('.build-wrap').formBuilder
+      templates: separateLine: (fieldData) ->
+        { field: '<hr/>' }
+      fields: builderOption.thematicBreak()
       dataType: 'json'
-      formData:  fields.replace(/=>/g, ':')
-      disableFields: ['autocomplete', 'header', 'hidden', 'paragraph', 'button', 'checkbox']
+      formData:  JSON.stringify(fields)
+      disableFields: ['autocomplete', 'header', 'hidden', 'button', 'checkbox']
       showActionButtons: false
       messages: {
         cannotBeEmpty: 'name_separated_with_underscore'
@@ -95,12 +100,13 @@ CIF.Custom_fieldsNew = CIF.Custom_fieldsCreate = CIF.Custom_fieldsEdit = CIF.Cus
         select: builderOption.eventSelectOption()
         text: builderOption.eventTextFieldOption()
         textarea: builderOption.eventTextAreaOption()
+        separateLine: builderOption.eventSeparateLineOption()
+        paragraph: builderOption.eventParagraphOption()
       }
 
-    }).data('formBuilder');
-
-    $("#custom-field-submit").click (event)->
-      $('#custom_field_fields').val(formBuilder.formData)
+    $("#custom-field-submit").click (event) ->
+      specialCharacters = {"&quot;": '"', "&amp;": "&", "&lt;": "<", "&gt;": ">"}
+      $('#custom_field_fields').val(formBuilder.actions.save().allReplace(specialCharacters))
 
   _select2 = ->
     $('#custom_field_entity_type').select2
@@ -133,15 +139,24 @@ CIF.Custom_fieldsNew = CIF.Custom_fieldsCreate = CIF.Custom_fieldsEdit = CIF.Cus
             $('#livesearch').css('visibility', 'visible')
             ngo_name = field.ngo_name.replace(/\s/g,"+")
             url_origin = document.location.origin
-            preview_link = "#{url_origin}/fields/preview?custom_field_id=#{field.id}&ngo_name=#{ngo_name}"
+            preview_link = "#{url_origin}/custom_fields/preview?custom_field_id=#{field.id}&ngo_name=#{ngo_name}"
             $('#livesearch').append("<li><span class='col-xs-8'>#{field.form_title} (#{field.ngo_name})</span>
             <span class='col-xs-4 text-right'><a href=#{preview_link}>#{previewTranslation}</a></span></li>")
+
+  _removeSearchCustomFields = ->
+    $('#custom_field_form_title').blur ->
+      setTimeout ( ->
+        $('#livesearch').css('visibility', 'hidden')
+      ), 200
 
   _preventRemoveFields = (fields) ->
     labelFields = $('label.field-label')
     for labelField in labelFields
       parent = $(labelField).parent()
       text = labelField.textContent
-      $(parent).children('div.field-actions').remove() if fields.includes(text)
+      if fields.includes(text)
+        $(parent).children('div.field-actions').remove()
+        $(parent).on 'dblclick', (e) ->
+          e.stopPropagation()
 
   { init: _init }

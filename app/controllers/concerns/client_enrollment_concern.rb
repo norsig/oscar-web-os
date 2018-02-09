@@ -1,13 +1,4 @@
 module ClientEnrollmentConcern
-  extend ActiveSupport::Concern
-
-  included do
-    before_action :find_client
-    before_action :find_program_stream, except: :index
-    before_action :find_client_enrollment, only: [:show, :edit, :update, :destroy]
-    before_action :get_attachments, only: [:new, :edit, :update, :create]
-  end
-
   def client_enrollment_params
     properties_params.values.map{ |v| v.delete('') if (v.is_a?Array) && v.size > 1 } if properties_params.present?
 
@@ -53,8 +44,6 @@ module ClientEnrollmentConcern
     end
   end
 
-  private
-
   def find_client_enrollment
     @client_enrollment = @client.client_enrollments.find(params[:id])
   end
@@ -69,5 +58,12 @@ module ClientEnrollmentConcern
 
   def get_attachments
     @attachments = @client_enrollment.form_builder_attachments
+  end
+
+  def check_user_permission(permission)
+    unless current_user.admin? || current_user.strategic_overviewer?
+      permission_set = current_user.program_stream_permissions.find_by(program_stream_id: @program_stream.id)[permission]
+      redirect_to root_path, alert: t('unauthorized.default') unless permission_set
+    end
   end
 end

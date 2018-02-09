@@ -2,6 +2,7 @@ ENV['RAILS_ENV'] ||= 'test'
 require File.expand_path('../../config/environment', __FILE__)
 require 'rails_helper'
 require 'shoulda/matchers'
+require 'cancan/matchers'
 require 'factory_girl'
 require 'ffaker'
 require 'capybara/rails'
@@ -31,10 +32,17 @@ Dir[Rails.root.join('spec/supports/**/*.rb')].each { |f| require f }
 Capybara.javascript_driver = :poltergeist
 # Capybara.app_host= 'http://lvh.me'
 
+Capybara.register_server :thin do |app, port, host|
+    require 'rack/handler/thin'
+   Rack::Handler::Thin.run(app, :Port => port, :Host => host)
+end
+
+Capybara.server = :thin
+
 Capybara.register_driver :poltergeist do |app|
   options = {
     js_errors: false,
-    phantomjs_options: ['--load-images=false', '--ignore-ssl-errors=yes', '--ssl-protocol=any'],
+    phantomjs_options: ['--load-images=true', '--ignore-ssl-errors=yes', '--ssl-protocol=any'],
     timeout: 60
   }
   Capybara::Poltergeist::Driver.new(app, options)
@@ -75,6 +83,7 @@ RSpec.configure do |config|
   end
   config.before(:each, type: :feature) do
     default_url_options[:locale] = I18n.default_locale
+    default_url_options[:country] = 'cambodia'
   end
   # rspec-mocks config goes here. You can use an alternate test double
   # library (such as bogus or mocha) by changing the `mock_with` option here.
@@ -87,10 +96,12 @@ RSpec.configure do |config|
 
   config.before(:suite) do
     DatabaseCleaner.strategy = :truncation
+    Apartment::Tenant.drop('demo') rescue nil
     Apartment::Tenant.drop('app') rescue nil
+    Organization.create_and_build_tanent(full_name: 'Demo', short_name: 'demo')
     Organization.create_and_build_tanent(full_name: 'Organization Testing', short_name: 'app')
   end
-  
+
   config.before(:each, js: true) do
     page.driver.browser.url_blacklist = %w(http://use.typekit.net https://fonts.gstatic.com https://fonts.googleapis.com http://cdn.rawgit.com)
     page.driver.browser.url_whitelist = %w(http://app.lvh.me http://lvh.me 127.0.0.1)

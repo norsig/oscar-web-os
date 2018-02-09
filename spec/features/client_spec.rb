@@ -1,6 +1,6 @@
 describe 'Client' do
   let(:admin) { create(:user, roles: 'admin') }
-  let(:user) { create(:user) }
+  let!(:user) { create(:user) }
 
   feature 'List' do
     let!(:client){create(:client, users: [user])}
@@ -45,23 +45,30 @@ describe 'Client' do
       login_as(admin)
       visit clients_path
     end
-    scenario 'Domain Score Statistic and Case Type Statistic', js: true do
+    scenario 'Domain Score Statistic and Active Programs Statistic', js: true do
       page.find("#client-statistic").click
       wait_for_ajax
       expect(page).to have_css("#cis-domain-score[data-title='CSI Domain Scores']")
       expect(page).to have_css("#cis-domain-score[data-yaxis-title='Domain Scores']")
-      expect(page).to have_css("#case-statistic[data-title='Case Statistics']")
-      expect(page).to have_css("#case-statistic[data-yaxis-title='Client Amounts']")
+      expect(page).to have_css("#program-statistic[data-title='Active Programs']")
+      expect(page).to have_css("#program-statistic[data-yaxis-title='Clients']")
     end
   end
 
   feature 'Show' do
-    let!(:client){ create(:client, users: [user], state: 'accepted') }
+    let!(:client){ create(:client, users: [user], state: 'accepted', current_address: '') }
     let!(:other_client){create(:client)}
     before do
       login_as(user)
       visit client_path(client)
     end
+
+    feature 'country' do
+      scenario 'Cambodia' do
+        expect(page).to have_css('.address', text: 'Cambodia')
+      end
+    end
+
     scenario 'information' do
       expect(page).to have_content(client.name)
       expect(page).to have_content(client.gender.capitalize)
@@ -86,6 +93,10 @@ describe 'Client' do
 
     scenario 'delete link' do
       expect(page).to have_css("a[href='#{client_path(client)}'][data-method='delete']")
+    end
+
+    scenario 'government report invisible' do
+      expect(page).not_to have_link(nil, href: client_path(client, format: 'pdf'))
     end
   end
 
@@ -116,20 +127,21 @@ describe 'Client' do
     scenario 'warning', js: true do
       fill_in 'Given Name', with: 'Branderjo'
       fill_in 'Family Name', with: 'Anderjo'
-      fill_in 'Given Name (Local)', with: 'Viny'
-      fill_in 'Family Name (Local)', with: 'Kelly'
+      fill_in 'Given Name (kh)', with: 'Viny'
+      fill_in 'Family Name (kh)', with: 'Kelly'
       fill_in 'Date of Birth', with: '2017-05-01'
       find(".client_users select option[value='#{user.id}']", visible: false).select_option
 
       find(".client_province select option[value='#{province.id}']", visible: false).select_option
       find(".client_birth_province_id select option[value='#{province.id}']", visible: false).select_option
 
-      fill_in 'Village', with: 'Sabay'
-      fill_in 'Commune', with: 'Vealvong'
-
       click_button 'Save'
       wait_for_ajax
       expect(page).to have_content("The client you are registering has many attributes that match a client who is already registered at")
+    end
+
+    scenario 'government repor section invisible' do
+      expect(page).not_to have_content('Government Form')
     end
   end
 
@@ -150,6 +162,10 @@ describe 'Client' do
       fill_in 'Given Name', with: ''
       click_button 'Save'
       expect(page).to have_content("can't be blank")
+    end
+
+    scenario 'government repor section invisible' do
+      expect(page).not_to have_content('Government Form')
     end
   end
 
@@ -175,7 +191,7 @@ describe 'Client' do
     end
     scenario 'has new case note link' do
       expect(page).to have_link('Add to EC', href: new_client_case_path(client, case_type: 'EC'))
-      expect(page).to have_link('Add to FC', href: new_client_case_path(client, case_type: 'FC'))
+      # expect(page).to have_link('Add to FC', href: new_client_case_path(client, case_type: 'FC'))
       expect(page).to have_link('Add to KC', href: new_client_case_path(client, case_type: 'KC'))
     end
   end
@@ -321,9 +337,9 @@ describe 'Client' do
         expect(page).to have_link('Add to EC', href: new_client_case_path(blank_client, case_type: 'EC'))
       end
 
-      scenario 'Foster Case Button' do
-        expect(page).to have_link('Add to FC', href: new_client_case_path(blank_client, case_type: 'FC'))
-      end
+      # scenario 'Foster Case Button' do
+      #   expect(page).to have_link('Add to FC', href: new_client_case_path(blank_client, case_type: 'FC'))
+      # end
 
       scenario 'Kinship Case Button' do
         expect(page).to have_link('Add to KC', href: new_client_case_path(blank_client, case_type: 'KC'))
@@ -423,9 +439,10 @@ describe 'Client' do
         expect(page).to have_link('Add to EC', href: new_client_case_path(inactive_client, case_type: 'EC'))
       end
 
-      scenario 'Foster Case Button' do
-        expect(page).to have_link('Add to FC', href: new_client_case_path(inactive_client, case_type: 'FC'))
-      end
+      # scenario 'Foster Case Button' do
+      #   expect(page).to have_link('Add to FC', href: new_client_case_path(inactive_client, case_type: 'FC'))
+      # end
+
       scenario 'Kinship Case Button' do
         expect(page).to have_link('Add to KC', href: new_client_case_path(inactive_client, case_type: 'KC'))
       end
@@ -471,6 +488,8 @@ describe 'Client' do
 
   feature 'Time in care' do
     let!(:accepted_client) { create(:client, state: 'accepted', users: [user]) }
+    let!(:accepted_client2) { create(:client, state: 'accepted', users: [user]) }
+    let!(:case) {create(:case, case_type: 'EC', client: accepted_client2, exited: false, start_date: 1.year.ago)}
     before do
       login_as(user)
     end
@@ -482,10 +501,8 @@ describe 'Client' do
     end
 
     scenario 'with case' do
-      Case.create(case_type: 'EC', client: accepted_client, exited: false, start_date: 1.year.ago)
-
-      visit client_path(accepted_client)
-      time_in_care = accepted_client.time_in_care
+      visit client_path(accepted_client2)
+      time_in_care = accepted_client2.time_in_care
       expect(page).to have_content(time_in_care)
     end
   end
@@ -511,6 +528,99 @@ describe 'Client' do
           visit client_path(accepted_client)
         end
         it { expect(page).to have_link(nil, href: edit_client_case_path(ec_case.client, ec_case)) }
+      end
+    end
+  end
+
+  feature 'Case notes, Assessments, Custom Field and Program Stream permission', js: true do
+    let!(:client){ create(:client, users: [admin, user], state: 'accepted') }
+    let!(:assessment) { create(:assessment, client: client) }
+    let!(:case_note) { create(:case_note, assessment: assessment, client: client)}
+
+    let!(:custom_field) { create(:custom_field) }
+    let!(:custom_field_property) { create(:custom_field_property, custom_formable: client, custom_field: custom_field) }
+
+    let!(:program_stream) { create(:program_stream) }
+    let!(:client_enrollment) { create(:client_enrollment, client: client, program_stream: program_stream) }
+
+    context 'can view and edit' do
+      before do
+        login_as(admin)
+        visit client_path(client)
+      end
+
+      scenario 'case notes' do
+        find("a[href='#{client_case_notes_path(client)}']").click
+        expect("#{client_case_notes_path(client)}").to have_content(current_path)
+
+        find("a[href='#{edit_client_case_note_path(client, case_note)}']").click
+        expect("#{edit_client_case_note_path(client, case_note)}").to have_content(current_path)
+      end
+
+      scenario 'assessments' do
+        find("a[href='#{client_assessments_path(client)}']").click
+        find("a[href='#{client_assessment_path(client, assessment)}']").click
+        expect("#{client_assessment_path(client, assessment)}").to have_content(current_path)
+
+        find("a[href='#{edit_client_assessment_path(client, assessment)}']").click
+        expect("#{edit_client_assessment_path(client, assessment)}").to have_content(current_path)
+      end
+
+      scenario 'custom fields' do
+        find("a[href='#{client_custom_field_properties_path(client, custom_field_id: custom_field.id)}']", visible: false).trigger('click')
+        expect(page).to have_content(custom_field.form_title)
+
+        find("a[href='#{edit_client_custom_field_property_path(client, custom_field_property, custom_field_id: custom_field.id)}']").click
+        expect("#{edit_client_custom_field_property_path(client, custom_field_property, custom_field_id: custom_field.id)}").to have_content(current_path)
+      end
+
+      scenario 'program streams' do
+        find("a[href='#{client_client_enrolled_programs_path(client)}']").click
+        expect("#{client_client_enrolled_programs_path(client)}").to have_content(current_path)
+
+        visit "#{edit_client_client_enrolled_program_path(client, client_enrollment, program_stream_id: program_stream.id)}"
+        expect("#{edit_client_client_enrolled_program_path(client, client_enrollment, program_stream_id: program_stream.id)}").to have_content(current_path)
+      end
+    end
+
+    context 'cannot view and edit' do
+      before do
+        login_as(user)
+        visit client_path(client)
+      end
+
+      scenario 'case notes' do
+        user.permission.update(case_notes_readable: false, case_notes_editable: false)
+        expect(page).not_to have_link("a[href='#{client_case_notes_path(client)}']")
+
+        visit edit_client_case_note_path(client, case_note)
+        expect(dashboards_path).to have_content(current_path)
+      end
+
+      scenario 'assessments' do
+        user.permission.update(assessments_readable: false, assessments_editable: false)
+        find("a[href='#{client_assessments_path(client)}']").click
+        expect(page).not_to have_link("a[href='#{client_assessment_path(client, assessment)}']")
+
+        visit edit_client_assessment_path(client, assessment)
+        expect(dashboards_path).to have_content(current_path)
+      end
+
+      scenario 'custom fields' do
+        user.custom_field_permissions.find_by(custom_field_id: custom_field.id).update(readable: false, editable: false)
+        expect(page).not_to have_link("a[href='#{client_custom_field_properties_path(client, custom_field_id: custom_field.id)}']")
+
+        visit edit_client_custom_field_property_path(client, custom_field_property, custom_field_id: custom_field.id)
+        expect(dashboards_path).to have_content(current_path)
+      end
+
+      scenario 'program streams' do
+        user.program_stream_permissions.find_by(program_stream_id: program_stream.id).update(readable: false, editable: false)
+        find("a[href='#{client_client_enrolled_programs_path(client)}']").click
+        expect(page).not_to have_content(program_stream.name)
+
+        visit edit_client_client_enrolled_program_path(client, client_enrollment, program_stream_id: program_stream.id)
+        expect(dashboards_path).to have_content(current_path)
       end
     end
   end

@@ -3,7 +3,10 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
   ENROLLMENT_URL   = "/api/program_streams/#{@programStreamId}/enrollment_fields"
   EXIT_PROGRAM_URL = "/api/program_streams/#{@programStreamId}/exit_program_fields"
   TRACKING_URL     = "/api/program_streams/#{@programStreamId}/tracking_fields"
+  TRACKING = ''
+  DATA_TABLE_ID = ''
   @formBuilder = []
+
   _init = ->
     @filterTranslation = ''
     _getTranslation()
@@ -26,14 +29,68 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
     _handleSelectFrequency()
     _initFrequencyNote()
     _editTrackingFormName()
+    _custom_field_list()
+    _initDataTable()
+    _filterSelecting()
+
+  _initDataTable = ->
+    $('.custom-field-table').each ->
+      self = @
+      $(@).DataTable
+        bFilter: false
+        sScrollY: '500'
+        bInfo: false
+        processing: true
+        serverSide: true
+        ajax: $(this).data('url')
+        columns: [
+          null
+          null
+          null
+          bSortable: false, className: 'text-center'
+        ]
+        language:
+          paginate:
+            previous: $(self).data('previous')
+            next: $(self).data('next')
+        drawCallback: ->
+          _getDataTableId()
+          _copyCustomForm(self)
+
+  _getDataTableId = ->
+    $('.paginate_button a').click ->
+      DATA_TABLE_ID = $($(this).parents('.table-responsive').find('.custom-field-table')[1]).attr('id')
+
+  _custom_field_list = ->
+    $('.custom-field-list').click ->
+      TRACKING = $(@).parents('.nested-fields')
+
+  _copyCustomForm = (element)->
+    self = @
+    elementId = $(element).attr('id')
+    $("##{elementId} .copy-form").click ->
+      fields = $(@).data('fields')
+      for formBuilder in self.formBuilder
+        element = formBuilder.element
+        if $(element).is('.tracking-builder') && $('#trackings').is(':visible')
+          builderId = $(TRACKING).attr('id')
+          formBuilderId = $(formBuilder.element).parents('.nested-fields').attr('id')
+          if formBuilderId == builderId
+            _addFieldProgramBuilder(formBuilder, fields)
+            setTimeout ( ->
+              document.getElementById(builderId).scrollIntoView()
+            )
+      $('#custom-field').modal('hide')
+
+  _addFieldProgramBuilder = (formBuilder, fields) ->
+    combineFields = JSON.parse(formBuilder.actions.save()).concat(fields)
+    for field in fields
+      formBuilder.actions.addField(field)
 
   _initCheckbox = ->
     $('.i-checks').iCheck
       checkboxClass: 'icheckbox_square-green'
     $($('.icheckbox_square-green.checked')[0]).removeClass('checked')
-
-  _stickyFill = ->
-    if $('.form-wrap').is(':visible') then $('.cb-wrap').Stickyfill()
 
   _initSelect2 = ->
     $('#description select, #rule-tab select').select2()
@@ -86,7 +143,7 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
     $('#btn-save-draft').on 'click', ->
       return false unless _handleCheckingDuplicateFields()
       return false if _handleMaximumProgramEnrollment()
-      _handleRemoveUnuseInput()
+      return false if _handleCheckingInvalidRuleValue() > 0
       _handleAddRuleBuilderToInput()
       _handleSetValueToField()
       $('.tracking-builder').find('input, textarea').removeAttr('required')
@@ -94,19 +151,21 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
 
   _handleSetRules = ->
     rules = $('#program_stream_rules').val()
-    rules = JSON.parse(rules.replace(/=>/g, ':'))
-    $('#program-rule').queryBuilder('setRules', rules) unless $.isEmptyObject(rules)
+    rules = JSON.parse(rules)
+    $('#program-rule').queryBuilder('setRules', rules) unless _.isEmpty(rules.rules)
 
   _addRuleCallback = ->
     $('#program-rule').on 'afterCreateRuleFilters.queryBuilder', ->
       _initSelect2()
       _handleSelectOptionChange()
+      _filterSelecting()
 
   _getTranslation = ->
     @filterTranslation =
       addFilter: $('#program-rule').data('filter-translation-add-filter')
       addGroup: $('#program-rule').data('filter-translation-add-group')
       deleteGroup: $('#program-rule').data('filter-translation-delete-group')
+      finish: $('.program-steps').data('finish')
       next: $('.program-steps').data('next')
       previous: $('.program-steps').data('previous')
       save: $('.program-steps').data('save')
@@ -130,34 +189,46 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
         setTimeout (->
           _handleSelectTab()
           _initSelect2()
+          _preventDomainScore()
           ), 100
         _handleSetRules()
         _handleSelectOptionChange()
+        _disableOptionDomainScores()
 
   _handleAddCocoon = ->
     $('#trackings').on 'cocoon:after-insert', (e, element) ->
       trackingBuilder = $(element).find('.tracking-builder')
+      $(element).attr('id', Date.now())
       _initProgramBuilder(trackingBuilder, [])
-      _stickyFill()
       _editTrackingFormName()
       _handleRemoveCocoon()
       _initSelect2TimeOfFrequency()
       _handleRemoveFrequency()
       _handleSelectFrequency()
       _initFrequencyNote()
+      _custom_field_list()
 
   _initProgramBuilder = (element, data) ->
     builderOption = new CIF.CustomFormBuilder()
-    data = if data.length != 0 then data.replace(/=>/g, ':') else ''
-    @formBuilder.push $(element).formBuilder({
+    data = JSON.stringify(data)
+    formBuilder = $(element).formBuilder(
+      templates: separateLine: (fieldData) ->
+        { field: '<hr/>' }
+      fields: builderOption.thematicBreak()
       dataType: 'json'
       formData: data
-      disableFields: ['autocomplete', 'header', 'hidden', 'paragraph', 'button','checkbox']
+      disableFields: ['autocomplete', 'header', 'hidden', 'button', 'checkbox']
       showActionButtons: false
       messages: {
         cannotBeEmpty: 'name_separated_with_underscore'
       }
-
+      stickyControls: {
+        enable: true
+        offset:
+          width: '17%'
+          right: 78
+          left: 'auto'
+      }
       typeUserEvents: {
         'checkbox-group': builderOption.eventCheckboxOption()
         date: builderOption.eventDateOption()
@@ -167,8 +238,11 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
         select: builderOption.eventSelectOption()
         text: builderOption.eventTextFieldOption()
         textarea: builderOption.eventTextAreaOption()
-      }
-    }).data('formBuilder');
+        separateLine: builderOption.eventSeparateLineOption()
+        paragraph: builderOption.eventParagraphOption()
+      })
+    formBuilder.element = element
+    @formBuilder.push formBuilder
 
    _editTrackingFormName = ->
     inputNames = $(".program_stream_trackings_name input[type='text']")
@@ -209,6 +283,7 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
       headerTag: 'h4'
       bodyTag: 'section'
       transitionEffect: 'slideLeft'
+      enableKeyNavigation: false
 
       onStepChanging: (event, currentIndex, newIndex) ->
         if currentIndex == 0 and newIndex == 1 and $('#description').is(':visible')
@@ -222,40 +297,54 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
           return _handleCheckingDuplicateFields()
           return false if _handleCheckingDuplicateFields()
         else if $('#rule-tab').is(':visible')
+          return false if _handleCheckingInvalidRuleValue() > 0
           return false if _handleMaximumProgramEnrollment()
         $('section ul.frmb.ui-sortable').css('min-height', '266px')
 
       onStepChanged: (event, currentIndex, newIndex) ->
-        _stickyFill()
         buttonSave = $('#btn-save-draft')
         if $('#rule-tab').is(':visible')
           _handleRemoveProgramList()
         else if $('#exit-program').is(':visible') then $(buttonSave).hide() else $(buttonSave).show()
 
       onFinished: (event, currentIndex) ->
-        $('.actions a:contains("Finish")').removeAttr('href')
+        finish = self.filterTranslation.finish
+        $(".actions a:contains(#{finish})").removeAttr('href')
         return false unless _handleCheckingDuplicateFields()
-        _handleRemoveUnuseInput()
         _handleAddRuleBuilderToInput()
         _handleSetValueToField()
         form.submit()
 
       labels:
-        finish: self.filterTranslation.save
+        finish: self.filterTranslation.finish
         next: self.filterTranslation.next
         previous: self.filterTranslation.previous
+
+  _handleCheckingInvalidRuleValue = ->
+    invalidIntValues = $('.rule-value-container input[type=number].error').size()
+    invalidStrValues = 0
+
+    strValues = $('.rule-value-container input')
+    for strValue in strValues
+      if $(strValue).val() == '' and !($(strValue).attr('class').includes('select2'))
+        $(strValue).addClass('error')
+        elementParent = $(strValue).parent()
+        $(elementParent).append("<label class='error'>Field cannot be blank.</label>") unless $(elementParent).find('label.error').is(':visible')
+        invalidStrValues++
+
+    invalidValues = invalidIntValues + invalidStrValues
 
   _handleCheckTrackingName = ->
     nameFields = $('.program_stream_trackings_name:visible input[type="text"].error')
     if $(nameFields).length > 0 then false else true
 
   _handleClickAddTracking = ->
-    if $('#trackings .frmb').length == 0
+    if $('#trackings .nested-fields').length == 0
       $('.links a').trigger('click')
 
   _handleInitProgramFields = ->
     for element in $('#enrollment, #exit-program')
-      dataElement = $(element).data('field')
+      dataElement = JSON.parse($(element).children('span').text())
       _initProgramBuilder($(element), (dataElement || []))
       if element.id == 'enrollment' and $('#program_stream_id').val() != ''
         _preventRemoveField(ENROLLMENT_URL, '#enrollment')
@@ -264,7 +353,7 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
 
     trackings = $('.tracking-builder')
     for tracking in trackings
-      trackingValue = $(tracking).data('tracking')
+      trackingValue = JSON.parse($(tracking).children('span').text())
       _initProgramBuilder(tracking, (trackingValue || []))
     _preventRemoveField(TRACKING_URL, '') if $('#program_stream_id').val() != ''
 
@@ -273,25 +362,21 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
     btnSaveTranslation = filterTranslation.save
     form.find("[aria-label=Pagination]").append("<li><span id='btn-save-draft' class='btn btn-primary btn-sm'>#{btnSaveTranslation}</span></li>")
 
-  _handleRemoveUnuseInput = ->
-    elements = $('#program-rule ,#enrollment .form-wrap.form-builder, #tracking .form-wrap.form-builder, #exit-program .form-wrap.form-builder')
-    $(elements).find('input, select, radio, checkbox, textarea').remove()
-
   _handleAddRuleBuilderToInput = ->
-    rules = $('#program-rule').queryBuilder('getRules')
-    $('ul.rules-list li').removeClass('has-error') if ($.isEmptyObject(rules))
-    $('#program_stream_rules').val(_handleStringfyRules(rules)) if !($.isEmptyObject(rules))
+    rules = $('#program-rule').queryBuilder('getRules', { skip_empty: true, allow_invalid: true })
+    $('#program_stream_rules').val(_handleStringfyRules(rules))
 
   _handleSetValueToField = ->
+    specialCharacters = { "&quot;": '"', "&amp;": "&", "&lt;": "<", "&gt;": ">" }
     for formBuilder in @formBuilder
       element = formBuilder.element
       if $(element).is('#enrollment')
-        $('#program_stream_enrollment').val(formBuilder.formData)
+        $('#program_stream_enrollment').val(formBuilder.actions.save().allReplace(specialCharacters))
       else if $(element).is('.tracking-builder')
         hiddenField = $(element).find('.tracking-field-hidden input[type="hidden"]')
-        $(hiddenField).val(formBuilder.formData)
+        $(hiddenField).val(formBuilder.actions.save().allReplace(specialCharacters))
       else if $(element).is('#exit-program')
-        $('#program_stream_exit_program').val(formBuilder.formData)
+        $('#program_stream_exit_program').val(formBuilder.actions.save().allReplace(specialCharacters))
 
   _handleStringfyRules = (rules) ->
     rules = JSON.stringify(rules)
@@ -325,22 +410,31 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
           for labelField in labelFields
             text = labelField.textContent
             if fields.includes(text)
-              parent = $(labelField).parent()
-              $(parent).children('div.field-actions').remove()
+              _removeActionFormBuilder(labelField)
 
   _hideActionInTracking = (fields) ->
     trackings = $('#trackings .nested-fields')
     for tracking in trackings
       trackingName = $(tracking).find('input.string.optional.readonly.form-control')
-      return if $(trackingName).length == 0
+      continue if $(trackingName).length == 0
       name = $(trackingName).val()
       labelFields = $(tracking).find('label.field-label')
-      for labelField in labelFields
-        parent = $(labelField).parent()
-        for field in fields[name]
-          if labelField.textContent == field
-            $(parent).children('div.field-actions').remove()
-            $(tracking).find('.ibox-footer').remove()
+      if fields[name].length <= labelFields.length
+        $(tracking).find('.ibox-footer .remove_fields').remove()
+      $(labelFields).each (index, label) ->
+        text = $(label).text()
+        if fields[name].includes(text)
+          _removeActionFormBuilder(label)
+
+  _removeActionFormBuilder =(label) ->
+    $('li.paragraph-field.form-field').find('.del-button, .copy-button').remove()
+    parent = $(label).parent()
+    $(parent).find('.del-button, .copy-button').remove()
+    if $(parent).attr('class').includes('checkbox-group-field') || $(parent).attr('class').includes('radio-group-field') || $(parent).attr('class').includes('select-field')
+      $(parent).find('.option-label').attr('disabled', 'true')
+      $(parent).children('.frm-holder').find('.remove.btn').remove()
+    else if $(parent).attr('class').includes('number-field')
+      $(parent).find('.fld-min, .fld-max').attr('readonly', 'true')
 
   _initFrequencyNote = ->
     for nestedField in $('.nested-fields')
@@ -413,5 +507,50 @@ CIF.Program_streamsNew = CIF.Program_streamsEdit = CIF.Program_streamsCreate = C
     else
       $('.help-block.quantity').addClass('hidden')
       return false
+
+  _customFieldsFixedHeader = ->
+    $('table.custom-field-table').dataTable(
+      'bFilter': false
+      'bSort': false
+      'sScrollY': '500'
+      'bInfo': false
+      'bLengthChange': false
+      'bPaginate': false
+    )
+
+  _disableOptionDomainScores = ->
+    for domain in $('.rule-operator-container select')
+      _preventOptionDomainScores(domain)
+
+  _filterSelecting = ->
+    $('.rule-filter-container select').on 'select2-selecting', ->
+      self = @
+      setTimeout ( ->
+        _preventDomainScore()
+      )
+
+  _preventDomainScore = ->
+    $('.rule-operator-container select').on 'select2-selected', ->
+      _preventOptionDomainScores(@)
+
+  _preventOptionDomainScores = (element) ->
+    if $(element).parent().siblings('.rule-filter-container').find('option:selected').val().split('_')[0] == 'domainscore'
+      ruleValueContainer = $(element).parent().siblings('.rule-value-container')
+      if $(element).find('option:selected').val() == 'greater'
+        $(ruleValueContainer).find("option[value=4]").attr('disabled', 'disabled')
+        $(ruleValueContainer).find("option[value=1]").removeAttr('disabled')
+        if $(ruleValueContainer).find('option:selected').val() == '4'
+          $(ruleValueContainer).find('select').val('1').trigger('change')
+      else if $(element).find('option:selected').val() == 'less'
+        $(ruleValueContainer).find("option[value='1']").attr('disabled', 'disabled')
+        $(ruleValueContainer).find("option[value='4']").removeAttr('disabled')
+        if $(ruleValueContainer).find("option:selected").val() == '1'
+          $(ruleValueContainer).find('select').val('2').trigger('change')
+      else
+        $(ruleValueContainer).find("option[value='4']").removeAttr('disabled')
+        $(ruleValueContainer).find("option[value='1']").removeAttr('disabled')
+      setTimeout( ->
+        _initSelect2()
+      )
 
   { init: _init }

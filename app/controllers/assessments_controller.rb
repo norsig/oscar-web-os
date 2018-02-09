@@ -1,10 +1,12 @@
 class AssessmentsController < AdminController
   load_and_authorize_resource
 
-  before_action :find_client
+  before_action :find_client, :check_current_organization
   before_action :find_assessment, only: [:edit, :update, :show]
   before_action :restrict_invalid_assessment, only: [:new, :create]
   before_action :restrict_update_assessment, only: [:edit, :update]
+  before_action -> { assessments_permission('readable') }, only: :show
+  before_action -> { assessments_permission('editable') }, except: [:index, :show]
 
   def index
   end
@@ -24,9 +26,15 @@ class AssessmentsController < AdminController
   end
 
   def show
+    unless current_user.admin? || current_user.strategic_overviewer?
+      redirect_to root_path, alert: t('unauthorized.default') unless current_user.permission.assessments_readable
+    end
   end
 
   def edit
+    unless current_user.admin? || current_user.strategic_overviewer?
+      redirect_to root_path, alert: t('unauthorized.default') unless current_user.permission.assessments_editable
+    end
   end
 
   def update
@@ -82,7 +90,7 @@ class AssessmentsController < AdminController
     assessment_domain = AssessmentDomain.find(params[:assessment_domain])
     remain_attachment = assessment_domain.attachments
     deleted_attachment = remain_attachment.delete_at(index)
-    deleted_attachment.try(:remove!)
+    deleted_attachment.try(:remove_images!)
     remain_attachment.empty? ? assessment_domain.remove_attachments! : (assessment_domain.attachments = remain_attachment )
     message = t('.fail_delete_attachment') unless assessment_domain.save
   end
@@ -95,5 +103,19 @@ class AssessmentsController < AdminController
       assessment_domain.attachments = files
       assessment_domain.save
     end
+  end
+
+  def assessments_permission(permission)
+    unless current_user.admin? || current_user.strategic_overviewer?
+      if permission == 'readable'
+        redirect_to root_path, alert: t('unauthorized.default') unless current_user.permission.assessments_readable
+      else
+        redirect_to root_path, alert: t('unauthorized.default') unless current_user.permission.assessments_editable
+      end
+    end
+  end
+
+  def check_current_organization
+    redirect_to dashboards_path, alert: t('unauthorized.default') if current_organization.mho?
   end
 end

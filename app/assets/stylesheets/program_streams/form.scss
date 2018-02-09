@@ -3,6 +3,7 @@ body[id='program_streams-update'], body[id='program_streams-create'] {
 
   .wizard > .content > .body {
     #enrollment, #trackings, #exit-program {
+      position: relative;
       input[type='radio'] {
         display: inline-block;
       }
@@ -12,10 +13,17 @@ body[id='program_streams-update'], body[id='program_streams-create'] {
       background: #1ab394;
   }
 
+  .wizard > .steps > ul > li {
+    width: 19.9%;
+  }
+
+  .wizard > .steps > ul > li:nth-child(2) {
+    width: 20.4%;
+  }
+
   .content.clearfix section {
     width: 100%;
   }
-
 
   #program-rule {
     .select2-container {
@@ -114,5 +122,50 @@ body[id='program_streams-update'], body[id='program_streams-create'] {
 
   .quantity {
     color: #a94442;
+  }
+
+  #width-modal {
+    width: 80%;
+    th.form-title,  td.form-title {
+      width: 40% !important;
+    }
+
+    th.organization, td.organization {
+      width: 25% !important;
+    }
+
+    th.entity-type,  td.entity-type {
+      width: 20% !important;
+    }
+
+    th.copy, td.copy  {
+      width: 15% !important;
+    }
+
+    table.custom-field-table, .dataTables_scrollHeadInner, .dataTables_scrollHead, .dataTables_scrollBody {
+      width: 100% !important;
+    }
+
+    .dataTables_scrollHeadInner{
+      padding-right: 0 !important;
+    }
+
+    table.custom-field-table {
+      margin-bottom: 0;
+
+      th {
+        border-bottom-width: 0;
+      }
+    }
+  }
+  .margin-top-datatable {
+    margin-top: 10px;
+  }
+
+  .field-actions a.btn.toggle-form {
+    margin-left: 0;
+  }
+  .cb-wrap {
+    // width: 340px !important;
   }
 }

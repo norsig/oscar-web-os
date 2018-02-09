@@ -8,9 +8,10 @@
 //= require jquery.validate.additional-methods
 //= require jquery.nicescroll.min
 //= require dataTables/jquery.dataTables
+//= require dataTables/bootstrap/3/jquery.dataTables.bootstrap
 //= require thredded
 //= require select2
-//= require cocoon
+
 //= require image_upload_previewer/image_upload_previewer
 //= require image_upload
 //= require bootstrap-datepicker/core
@@ -20,13 +21,12 @@
 //= require metisMenu/jquery.metisMenu.js
 //= require highcharts.js
 //= require dropzone
-//= require form-builder.min.js
-//= require form-render.min.js
-//= require jquery.extendext
-//= require doT
-//= require query-builder
-//= require stickyfill.js
+//= require replace_string.js
+//= require form_builder/form-builder.min
+//= require form_builder/form-render.min
 //= require lodash/lodash.min.js
+//= require query_builder/query-builder.standalone.min.js
+//= require interact.js
 
 //= require tinymce
 //= require moment
@@ -51,6 +51,8 @@
 //= require footable.all.min
 
 //APPLICATION JS
+//= require client_advance_search
+
 //= require check_duplicate_array.js
 //= require advanced_filter_builder
 //= require custom_form_builder
@@ -60,10 +62,10 @@
 //= require tasks/form
 //= require tasks/index
 //= require dashboards/index
+//= require districts/index
 //= require case_notes/form
 //= require cases/form
 //= require calendars/index
-//= require admin/tasks
 //= require clients/index
 //= require report_creator
 //= require clients/show
@@ -76,9 +78,6 @@
 //= require users/form
 //= require partners/index
 //= require partners/form
-//= require stages/form
-//= require able_screening_questions/form
-//= require able_screening_answers/form
 //= require data_trackers/index
 //= require progress_notes/form
 //= require progress_notes/index

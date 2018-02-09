@@ -7,7 +7,7 @@
         .col-xs-3.col-sm-6.col-md-4
           = submit_tag t('.search'), name: nil, class: 'btn btn-primary'
   .col-xs-12.col-sm-4.col-md-4.text-right
-    - if can? :manage, CustomField
+    - if can? :create, CustomField
       = link_to t('.new_custom_form'), new_custom_field_path, class: 'btn btn-primary form-btn no-margin-top'
 .row
   .col-xs-12
@@ -17,10 +17,15 @@
           %ul.nav.nav-tabs{role: "tablist"}
             %li.active{role: "presentation"}
               %a{"aria-controls" => "custom-form", "data-toggle" => "tab", href: "#custom-form", role: "tab"}= t('.my_ngo')
-            - unless current_organization.try(:short_name) == 'mho'
+            - unless current_organization.mho?
               %li{role: "presentation"}
                 %a{"aria-controls" => "all-custom-form", "data-toggle" => "tab", href: "#all-custom-form", role: "tab"}= t('.all_ngo')
+            - unless current_organization.mho? || current_organization.demo?
+              %li{role: "presentation"}
+                %a{"aria-controls" => "demo-custom-form", "data-toggle" => "tab", href: "#demo-custom-form", role: "tab"}= t('.demo_ngo')
           .tab-content
             = render 'current_custom_form_tab'
-            - unless current_organization.try(:short_name) == 'mho'
+            - unless current_organization.mho?
               = render 'all_custom_form_tab'
+            - unless current_organization.mho? || current_organization.demo?
+              = render 'demo_custom_form_tab'

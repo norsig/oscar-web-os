@@ -45,7 +45,7 @@ class UserGrid
     User.province_are
   end
 
-  filter(:pin_number, :integer, header: -> { I18n.t('datagrid.columns.users.pin_number') } )
+  filter(:pin_code, :integer, header: -> { I18n.t('datagrid.columns.users.pin_number') } )
 
   column(:id, header: -> { I18n.t('datagrid.columns.users.id') })
 
@@ -58,9 +58,7 @@ class UserGrid
 
   column(:date_of_birth, header: -> { I18n.t('datagrid.columns.users.date_of_birth') })
 
-  column(:mobile, header: -> { I18n.t('datagrid.columns.users.mobile') }) do |object|
-    object.mobile.phony_formatted(normalize: :KH, format: :international) if object.mobile
-  end
+  column(:mobile, header: -> { I18n.t('datagrid.columns.users.mobile') })
 
   column(:email, header: -> { I18n.t('datagrid.columns.users.email') }) do |object|
     format(object.email) do |object_email|
@@ -84,7 +82,7 @@ class UserGrid
     object.roles.titleize
   end
 
-  column(:pin_number, header: -> { I18n.t('datagrid.columns.users.pin_number') })
+  column(:pin_code, header: -> { I18n.t('datagrid.columns.users.pin_number') })
 
   column(:manage, header: -> { I18n.t('datagrid.columns.users.manage') }, html: true, class: 'text-center') do |object|
     render partial: 'users/actions', locals: { object: object }

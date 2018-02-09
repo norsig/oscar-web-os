@@ -6,6 +6,8 @@ class CustomFieldPropertiesController < AdminController
   before_action :find_entity, :find_custom_field
   before_action :find_custom_field_property, only: [:edit, :update, :destroy]
   before_action :get_form_builder_attachments, only: [:edit, :update]
+  before_action -> { check_user_permission('editable') }, except: [:index, :show]
+  before_action -> { check_user_permission('readable') }, only: [:show, :index]
 
   def index
     @custom_field_properties = @custom_formable.custom_field_properties.accessible_by(current_ability).by_custom_field(@custom_field).most_recents.page(params[:page]).per(4)
@@ -46,7 +48,11 @@ class CustomFieldPropertiesController < AdminController
     name = params[:file_name]
     index = params[:file_index].to_i
     if name.present? && index.present?
-      delete_form_builder_attachment(@custom_field_property, name, index)
+      if name == 'attachments'
+        delete_custom_field_property_attachments(index)
+      else
+        delete_form_builder_attachment(@custom_field_property, name, index)
+      end
       redirect_to request.referer, notice: t('.delete_attachment_successfully')
     else
       @custom_field_property.destroy
@@ -63,6 +69,14 @@ class CustomFieldPropertiesController < AdminController
     default_params = default_params.merge(properties: properties_params) if properties_params.present?
     default_params = default_params.merge(form_builder_attachments_attributes: attachment_params) if action_name == 'create' && attachment_params.present?
     default_params
+  end
+
+  def delete_custom_field_property_attachments(index)
+    attachments = @custom_field_property.attachments
+    deleted_file = attachments.delete_at(index)
+    deleted_file.try(:remove_attachments!)
+    attachments.empty? ? @custom_field_property.remove_attachments! : @custom_field_property.attachments = attachments
+    @custom_field_property.save
   end
 
   def get_form_builder_attachments
@@ -90,4 +104,10 @@ class CustomFieldPropertiesController < AdminController
     end
   end
 
+  def check_user_permission(permission)
+    unless current_user.admin? || current_user.strategic_overviewer?
+      permission_set = current_user.custom_field_permissions.find_by(custom_field_id: @custom_field)[permission]
+      redirect_to root_path, alert: t('unauthorized.default') unless permission_set
+    end
+  end
 end
