@@ -62,6 +62,7 @@ describe Client, 'callbacks' do
       expect(ClientHistory.where('object.id' => agency_client.id).last.agency_client_histories.count).to eq(2)
     end
   end
+<<<<<<< HEAD
 
   context 'before_update' do
     context 'if exiting_ngo?' do
@@ -76,6 +77,8 @@ describe Client, 'callbacks' do
       end
     end
   end
+=======
+>>>>>>> 446d40388d134fe40855956d09d7151693c07436
 end
 
 describe Client, 'methods' do
@@ -111,7 +114,11 @@ describe Client, 'methods' do
         Client.notify_upcoming_csi_assessment
       end
       it 'does not send an email' do
+<<<<<<< HEAD
         expect(ActionMailer::Base.deliveries.map(&:subject).include?('Upcoming CSI Assessment')).to be_falsey
+=======
+        expect(ActionMailer::Base.deliveries.count).to eq(0)
+>>>>>>> 446d40388d134fe40855956d09d7151693c07436
       end
     end
 
@@ -807,6 +814,7 @@ describe 'validations' do
     it { expect(invalid_client).to be_invalid }
   end
 
+<<<<<<< HEAD
   context 'exited from ngo' do
     let!(:admin){ create(:user, :admin) }
     let!(:valid_client){ create(:client, exit_date: '2017-07-21', exit_note: 'testing', status: 'Exited - Dead') }
@@ -826,5 +834,19 @@ describe 'validations' do
       end
       it { expect(valid_client.valid?).to be_truthy }
     end
+=======
+  context 'exited from ngo should not contain blank data for exit info' do
+    let!(:admin){ create(:user, :admin) }
+    let!(:valid_client){ create(:client, exit_date: '2017-07-21', exit_note: 'testing', status: 'Exited - Dead') }
+
+    before do
+      valid_client.exit_date = ''
+      valid_client.exit_note = ''
+      valid_client.valid?
+    end
+
+    it { expect(valid_client.valid?).to be_falsey }
+    it { expect(valid_client.errors.full_messages.first).to include("can't be blank") }
+>>>>>>> 446d40388d134fe40855956d09d7151693c07436
   end
 end
