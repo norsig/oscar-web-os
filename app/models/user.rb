@@ -10,6 +10,10 @@ class User < ActiveRecord::Base
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :validatable
 
+  # has_one_time_password
+  # enum otp_module: { otp_module_disabled: 0, otp_module_enabled: 1 }
+  # attr_accessor :otp_code_token
+
   has_paper_trail
 
   include DeviseTokenAuth::Concerns::User
@@ -64,7 +68,7 @@ class User < ActiveRecord::Base
   scope :non_devs,                  -> { where.not(email: [ENV['DEV_EMAIL'], ENV['DEV2_EMAIL'], ENV['DEV3_EMAIL']]) }
 
   before_save :assign_as_admin
-  before_save :set_manager_ids, if: 'manager_id_changed?'
+  before_save  :set_manager_ids, if: 'manager_id_changed?'
   after_save :reset_manager, if: 'roles_changed?'
   after_create :build_permission
 
@@ -131,7 +135,7 @@ class User < ActiveRecord::Base
   def assessment_either_overdue_or_due_today
     overdue   = []
     due_today = []
-    clients.all_active_types.each do |client|
+    clients.all_active_types_and_referred_accepted.each do |client|
       client_next_asseement_date = client.next_assessment_date.to_date
       if client_next_asseement_date < Date.today
         overdue << client
@@ -143,11 +147,11 @@ class User < ActiveRecord::Base
   end
 
   def assessments_overdue
-    clients.all_active_types
+    clients.all_active_types_and_referred_accepted
   end
 
   def client_custom_field_frequency_overdue_or_due_today
-    entity_type_custom_field_notification(clients.all_active_types)
+    entity_type_custom_field_notification(clients.all_active_types_and_referred_accepted)
   end
 
   def user_custom_field_frequency_overdue_or_due_today
@@ -171,7 +175,7 @@ class User < ActiveRecord::Base
   end
 
   def client_enrollment_tracking_overdue_or_due_today
-    client_enrollment_tracking_notification(clients.all_active_types)
+    client_enrollment_tracking_notification(clients.all_active_types_and_referred_accepted)
   end
 
   def self.self_and_subordinates(user)
@@ -208,7 +212,7 @@ class User < ActiveRecord::Base
       update_manager_ids(self)
     else
       manager_ids = User.find(self.manager_id).manager_ids
-      update_manager_ids(self, manager_ids.unshift(self.manager_id))
+      update_manager_ids(self, manager_ids.unshift(self.manager_id).compact.uniq)
     end
   end
 
@@ -219,7 +223,8 @@ class User < ActiveRecord::Base
     case_workers = User.where(manager_id: user.id)
     if case_workers.present?
       case_workers.each do |case_worker|
-        update_manager_ids(case_worker, manager_ids.unshift(user.id))
+        next if case_worker.id == self.id
+        update_manager_ids(case_worker, manager_ids.unshift(user.id).compact.uniq)
       end
     end
   end
@@ -243,4 +248,10 @@ class User < ActiveRecord::Base
       program_stream_permissions.build(program_stream_id: ps.id)
     end
   end
+
+  # def otp_module_changeable?
+  #   # set it to false until the client request this feature
+  #   # as the user is unable to access their device/token
+  #   false
+  # end
 end

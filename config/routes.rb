@@ -31,6 +31,10 @@ Rails.application.routes.draw do
       resources :permissions
       get 'version' => 'users#version'
       get 'disable' => 'users#disable'
+      # member do
+      #   post :enable_multi_factor_authentication, to: 'users/multi_factor_authentication#verify_enable'
+      #   post :disable_multi_factor_authentication, to: 'users/multi_factor_authentication#verify_disabled'
+      # end
     end
   end
 
@@ -54,13 +58,13 @@ Rails.application.routes.draw do
     get 'version' => 'domains#version'
   end
 
-  resources :provinces, except: [:show] do
-    get 'version' => 'provinces#version'
-  end
+  # resources :provinces, except: [:show] do
+  #   get 'version' => 'provinces#version'
+  # end
 
-  resources :districts, except: [:show] do
-    get 'version' => 'districts#version'
-  end
+  # resources :districts, except: [:show] do
+  #   get 'version' => 'districts#version'
+  # end
 
   resources :departments, except: [:show] do
     get 'version' => 'departments#version'
@@ -98,8 +102,8 @@ Rails.application.routes.draw do
   resources :interventions, except: [:show] do
     get 'version' => 'interventions#version'
   end
-
   resources :clients do
+
     collection do
       get :advanced_search
     end
@@ -257,4 +261,5 @@ Rails.application.routes.draw do
       get 'country' => 'settings#country'
     end
   end
+
 end
